@@ -278,7 +278,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_handlers(&mut self) {
-		self.push_line("reliable_handlers = {");
+		self.push_line("local reliable_handlers = {");
 
 		self.indent();
 
