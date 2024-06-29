@@ -173,6 +173,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_header(&mut self) {
+		self.push_reliable_handlers();
 		self.push_line("reliable.OnServerEvent:Connect(function(player, buff, inst)");
 		self.indent();
 		self.push_line("incoming_buff = buff");
@@ -192,22 +193,10 @@ impl<'a> ServerOutput<'a> {
 		));
 	}
 
-	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl) {
+	fn push_reliable_handler_callback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
+		self.push_line(&format!("[{id}] = function(player, buff, inst)"));
 
 		self.indent();
 
@@ -236,21 +225,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end");
 
 		self.dedent();
+		self.push_line("end,");
 	}
 
-	fn push_fn_callback(&mut self, first: bool, fndecl: &FnDecl) {
+	fn push_reliable_handler_fn_callback(&mut self, fndecl: &FnDecl) {
 		let id = fndecl.id;
 
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
+		self.push_line(&format!("[{id}] = function(player, buff, inst)"));
 
 		self.indent();
 
@@ -293,6 +274,30 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end");
 
 		self.dedent();
+		self.push_line("end,");
+	}
+
+	fn push_reliable_handlers(&mut self) {
+		self.push_line("reliable_handlers = {");
+
+		self.indent();
+
+		for ev in self
+			.config
+			.evdecls
+			.iter()
+			.filter(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
+		{
+			self.push_reliable_handler_callback(ev);
+		}
+
+		for fndecl in self.config.fndecls.iter() {
+			self.push_reliable_handler_fn_callback(fndecl);
+		}
+
+		self.dedent();
+
+		self.push_line("}");
 	}
 
 	fn push_reliable_footer(&mut self) {
@@ -310,22 +315,10 @@ impl<'a> ServerOutput<'a> {
 	fn push_reliable(&mut self) {
 		self.push_reliable_header();
 
-		let mut first = true;
-
-		for ev in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
-		{
-			self.push_reliable_callback(first, ev);
-			first = false;
-		}
-
-		for fndecl in self.config.fndecls.iter() {
-			self.push_fn_callback(first, fndecl);
-			first = false;
-		}
+		self.push_line("if reliable_handlers[id] then");
+		self.indent();
+		self.push_line("reliable_handlers[id](player, buff, inst)");
+		self.dedent();
 
 		self.push_reliable_footer();
 	}

@@ -149,7 +149,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local buff = buffer.create(outgoing_used)");
 		self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 		self.push("\n");
-		self.push_line("reliable:FireServer(buff, outgoing_inst)");
+		self.push_line("reliable:FireServer(buff, #outgoing_inst > 0 and outgoing_inst)");
 		self.push("\n");
 		self.push_line("outgoing_buff = buffer.create(64)");
 		self.push_line("outgoing_used = 0");
